@@ -577,7 +577,8 @@ async function renderSettings() {
         <li>Each category has one easier and one harder question. Recent questions are not repeated.</li>
         <li>Each interview: <strong>Clarify</strong> (ask the interviewer questions) → <strong>Answer</strong> (present; the interviewer may probe) → <strong>Score</strong> against a weighted rubric with a model answer.</li>
       </ul>
-    </div>`;
+    </div>
+    <p class="muted small" style="margin-top:1rem">Version: ${esc(typeof __BUILD__ === "string" ? __BUILD__ : "dev")}</p>`;
 
   const $ks = document.getElementById("keyStatus");
   document.getElementById("saveKey").onclick = async () => {
