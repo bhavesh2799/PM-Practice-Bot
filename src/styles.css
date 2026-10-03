@@ -177,6 +177,15 @@ details[open] summary { margin-bottom: 0.6rem; }
 .kv dt { color: var(--muted); font-weight: 600; }
 .kv dd { margin: 0; }
 
+/* Settings: cost plans */
+.plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; }
+.plan {
+  display: flex; flex-direction: column; gap: 0.2rem; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem 0.8rem; background: var(--surface);
+}
+.plan.on { border-color: var(--accent); background: var(--accent-soft); }
+.plan input { position: absolute; opacity: 0; pointer-events: none; }
+
 /* Progress */
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.9rem; }
 .stat .n { font-size: 1.6rem; font-weight: 800; }
@@ -191,7 +200,7 @@ th { color: var(--muted); font-weight: 600; }
 @media (max-width: 860px) {
   .session { grid-template-columns: 1fr; }
   .side { position: static; }
-  .grid2, .cols3, .cols3.cols-1-2 { grid-template-columns: 1fr; }
+  .grid2, .cols3, .cols3.cols-1-2, .plans { grid-template-columns: 1fr; }
   .report-head { grid-template-columns: 1fr; justify-items: start; }
   .msg { max-width: 100%; }
 }

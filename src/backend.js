@@ -1,7 +1,7 @@
 // In-browser "backend": the same routes the UI used to call over HTTP,
 // implemented on top of localStorage and direct Anthropic API calls.
 import { CATEGORIES, DEFAULT_PROFILE, dailyPlan } from "./prompts.js";
-import { isMock, generateCategory, interviewerReply, scoreSession } from "./claude.js";
+import { isMock, generateCategory, interviewerReply, scoreSession, PLANS, DEFAULT_PLAN } from "./claude.js";
 import * as store from "./store.js";
 
 const ORDER = ["guesstimate", "rca", "product_design"];
@@ -59,7 +59,23 @@ function saveProfile({ text }) {
 
 function getSettings() {
   const s = store.getSettings();
-  return { mock: !!s.mock, hasKey: !!s.apiKey, keyHint: s.apiKey ? `…${s.apiKey.slice(-4)}` : "", workspaceId: s.workspaceId || "" };
+  const usage = store.getUsage();
+  const now = new Date();
+  const dayOfMonth = now.getUTCDate();
+  const daysInMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).getUTCDate();
+  return {
+    mock: !!s.mock,
+    hasKey: !!s.apiKey,
+    keyHint: s.apiKey ? `…${s.apiKey.slice(-4)}` : "",
+    workspaceId: s.workspaceId || "",
+    plan: PLANS[s.plan] ? s.plan : DEFAULT_PLAN,
+    plans: Object.entries(PLANS).map(([key, p]) => ({ key, label: p.label, detail: p.detail, monthly: p.monthly })),
+    usage: {
+      cost: usage.cost,
+      calls: usage.calls,
+      projected: (usage.cost / dayOfMonth) * daysInMonth,
+    },
+  };
 }
 
 function saveSettings(body) {
@@ -67,6 +83,7 @@ function saveSettings(body) {
   if ("apiKey" in body) s.apiKey = String(body.apiKey || "").trim();
   if ("workspaceId" in body) s.workspaceId = String(body.workspaceId || "").trim();
   if ("mock" in body) s.mock = !!body.mock;
+  if ("plan" in body && PLANS[body.plan]) s.plan = body.plan;
   store.saveSettings(s);
   return getSettings();
 }

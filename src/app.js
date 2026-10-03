@@ -551,6 +551,22 @@ async function renderSettings() {
       <span class="muted small" id="keyStatus"></span>
     </div>
 
+    <h2 style="margin-top:1.5rem">Cost plan</h2>
+    <div class="card stack">
+      <div class="plans">
+        ${settings.plans.map((p) => `
+          <label class="plan ${p.key === settings.plan ? "on" : ""}">
+            <input type="radio" name="plan" value="${p.key}" ${p.key === settings.plan ? "checked" : ""} />
+            <strong>${esc(p.label)}</strong>
+            <span class="small muted">${esc(p.detail)}</span>
+            <span class="small"><strong>${esc(p.monthly)}</strong> / month</span>
+          </label>`).join("")}
+      </div>
+      <p class="small muted" style="margin:0">Monthly figures are estimates for doing all 6 interviews every day. Doing 3 a day roughly halves them. Each new set of questions costs a little extra.</p>
+      <div class="small">This month so far: <strong>$${settings.usage.cost.toFixed(2)}</strong> across ${settings.usage.calls} API calls${settings.usage.calls ? ` · on track for about <strong>$${settings.usage.projected.toFixed(2)}</strong> by month end` : ""}. <span class="muted">Estimated from token counts in this browser; your Anthropic Console shows the exact bill.</span></div>
+      <span class="muted small" id="planStatus"></span>
+    </div>
+
     <h2 style="margin-top:1.5rem">Your profile</h2>
     <p class="muted small">Questions are tailored to this. Changes apply to newly generated sets (use “↻ New set” on Today to regenerate).</p>
     <div class="card profile">
@@ -607,6 +623,14 @@ async function renderSettings() {
       ? "Demo mode on. Use “↻ New set” on Today to swap in demo questions."
       : "Demo mode off. Use “↻ New set” on Today to replace any demo questions with real ones.";
   };
+
+  document.querySelectorAll('input[name="plan"]').forEach((el) => {
+    el.onchange = async () => {
+      await api("/api/settings", { method: "PUT", body: { plan: el.value } });
+      document.querySelectorAll(".plan").forEach((l) => l.classList.toggle("on", l.contains(el)));
+      document.getElementById("planStatus").textContent = "Saved. Applies to your next question set, reply and scoring.";
+    };
+  });
 
   document.getElementById("save").onclick = async () => {
     const $s = document.getElementById("status");

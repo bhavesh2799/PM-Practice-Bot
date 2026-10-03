@@ -48,6 +48,20 @@ export const getSession = (id) => read(SESSION + id);
 export const saveSession = (s) => write(SESSION + s.id, s);
 export const listSessions = () => listByPrefix(SESSION);
 
+// Estimated API spend per calendar month, e.g. pmpb:usage:2026-10 -> { cost, calls }.
+const monthKey = (d = new Date()) => `${P}usage:${d.toISOString().slice(0, 7)}`;
+export function addUsage(cost) {
+  const u = read(monthKey(), { cost: 0, calls: 0 });
+  u.cost += cost;
+  u.calls += 1;
+  try {
+    localStorage.setItem(monthKey(), JSON.stringify(u));
+  } catch {
+    // Spend tracking is best-effort; never fail a request over it.
+  }
+}
+export const getUsage = () => read(monthKey(), { cost: 0, calls: 0 });
+
 /** All app data except the API key. */
 export function exportAll() {
   return {

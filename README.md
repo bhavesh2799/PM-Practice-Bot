@@ -40,9 +40,13 @@ Everything runs in your browser:
 
 ## Notes
 
-- Model: `claude-opus-5-5`. Question generation uses medium effort, the interviewer's replies use low effort (fast), and scoring uses high effort.
-- Requests enable server-side refusal fallback (`fallbacks: "default"`). If a request is ever declined, the API retries it on a fallback model.
-- Rough cost: about $0.30–0.60 to generate a day's 6 questions, 1–2 cents per interviewer reply, and about $0.10–0.20 per scoring. A full day of 6 interviews comes to roughly $1.50–2.
+- **Cost plans** (Settings). Monthly estimates assume all 6 interviews every day; doing 3 a day roughly halves them:
+  - *Best quality*: Claude Opus 5.5 for everything, ~$55–65/month.
+  - *Balanced* (default): Claude Sonnet 5.5 for everything with lighter scoring effort, ~$18–25/month.
+  - *Budget*: Claude Haiku 4.5 for everything, ~$7–10/month.
+- Settings shows this month's estimated spend and where it is heading by month end, computed from the token counts of each call. The Anthropic Console has the exact bill.
+- Interviewer replies use prompt caching, so the repeated system prompt and earlier turns cost a tenth of the normal input price on follow-up turns.
+- Opus and Sonnet requests enable server-side refusal fallback (`fallbacks: "default"`). If a request is ever declined, the API retries it on a fallback model.
 - Anyone can open the public URL, but each visitor needs their own API key. Nobody can see your key or your data.
 
 ## Develop
