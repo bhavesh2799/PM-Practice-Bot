@@ -59,12 +59,13 @@ function saveProfile({ text }) {
 
 function getSettings() {
   const s = store.getSettings();
-  return { mock: !!s.mock, hasKey: !!s.apiKey, keyHint: s.apiKey ? `…${s.apiKey.slice(-4)}` : "" };
+  return { mock: !!s.mock, hasKey: !!s.apiKey, keyHint: s.apiKey ? `…${s.apiKey.slice(-4)}` : "", workspaceId: s.workspaceId || "" };
 }
 
 function saveSettings(body) {
   const s = store.getSettings();
   if ("apiKey" in body) s.apiKey = String(body.apiKey || "").trim();
+  if ("workspaceId" in body) s.workspaceId = String(body.workspaceId || "").trim();
   if ("mock" in body) s.mock = !!body.mock;
   store.saveSettings(s);
   return getSettings();

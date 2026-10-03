@@ -542,6 +542,11 @@ async function renderSettings() {
         <button class="btn primary" id="saveKey">Save key</button>
         ${settings.hasKey ? `<button class="btn ghost" id="clearKey">Remove</button>` : ""}
       </div>
+      <div class="row">
+        <input id="workspace" type="text" autocomplete="off" spellcheck="false" value="${esc(settings.workspaceId)}" placeholder="Workspace ID (optional), e.g. wrkspc_01…" style="flex:1;min-width:220px" />
+        <button class="btn" id="saveWorkspace">Save workspace</button>
+      </div>
+      <p class="small muted" style="margin:0">Only needed if Claude says your key isn't tied to a workspace. Find the ID in the Anthropic Console under Settings → Workspaces. Leave it blank for keys created inside a workspace.</p>
       <label class="row small"><input type="checkbox" id="mock" ${settings.mock ? "checked" : ""} /> Demo mode — canned questions and placeholder feedback, no API calls</label>
       <span class="muted small" id="keyStatus"></span>
     </div>
@@ -582,6 +587,12 @@ async function renderSettings() {
     await api("/api/settings", { method: "PUT", body: { apiKey: key, mock: false } });
     await refreshConfig();
     renderSettings();
+  };
+  document.getElementById("saveWorkspace").onclick = async () => {
+    const id = document.getElementById("workspace").value.trim();
+    if (id && !id.startsWith("wrkspc_")) return ($ks.textContent = "Workspace IDs start with wrkspc_.");
+    await api("/api/settings", { method: "PUT", body: { workspaceId: id } });
+    $ks.textContent = id ? "Workspace saved." : "Workspace cleared.";
   };
   document.getElementById("clearKey")?.addEventListener("click", async () => {
     await api("/api/settings", { method: "PUT", body: { apiKey: "" } });

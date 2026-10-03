@@ -15,13 +15,19 @@ const FALLBACK = { betas: ["server-side-fallback-2026-07-01"], fallbacks: "defau
 // Calls go straight from the browser to the Anthropic API with the key the
 // user saved in Settings (kept in this browser's localStorage only).
 let client;
-let clientKey;
+let clientFor;
 function getClient() {
-  const key = getSettings().apiKey;
-  if (!key) throw new AIError("Add your Anthropic API key in Settings first (or turn on demo mode).", 401);
-  if (!client || clientKey !== key) {
-    client = new Anthropic({ apiKey: key, dangerouslyAllowBrowser: true });
-    clientKey = key;
+  const { apiKey, workspaceId } = getSettings();
+  if (!apiKey) throw new AIError("Add your Anthropic API key in Settings first (or turn on demo mode).", 401);
+  const fingerprint = `${apiKey}|${workspaceId || ""}`;
+  if (!client || clientFor !== fingerprint) {
+    client = new Anthropic({
+      apiKey,
+      dangerouslyAllowBrowser: true,
+      // Keys that aren't scoped to a workspace must name one on every request.
+      defaultHeaders: workspaceId ? { "anthropic-workspace-id": workspaceId } : undefined,
+    });
+    clientFor = fingerprint;
   }
   return client;
 }
@@ -41,6 +47,13 @@ function explain(err) {
     return new AIError("Rate limited by the Anthropic API — wait a minute and retry.", 429);
   if (err instanceof Anthropic.APIConnectionError)
     return new AIError("Could not reach the Anthropic API. Check your network.", 503);
+  if (err instanceof Anthropic.BadRequestError && /anthropic-workspace-id/.test(err.message))
+    return new AIError(
+      /valid workspace ID/.test(err.message)
+        ? "The Workspace ID in Settings isn't valid. Copy it from the Anthropic Console (it starts with wrkspc_)."
+        : "This API key isn't tied to a workspace. In Settings, either paste a key created inside a workspace, or add the Workspace ID (starts with wrkspc_).",
+      400,
+    );
   if (err instanceof Anthropic.APIError)
     return new AIError(`Anthropic API error (${err.status}): ${err.message}`, 502);
   return new AIError(err?.message || "Unknown error", 500);
