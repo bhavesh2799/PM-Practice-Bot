@@ -1,4 +1,4 @@
-// Canned data for `npm run mock` — lets you click through the UI without an API key.
+// Canned data for demo mode — lets you click through the UI without an API key.
 import { CATEGORIES } from "./prompts.js";
 
 const SAMPLES = {
@@ -92,7 +92,7 @@ export function score(question) {
     strengths: ["(mock) Clear structure"],
     improvements: ["(mock) Sanity-check the final number", "(mock) Prioritise hypotheses", "(mock) Summarise at the end"],
     verdict: "Lean hire",
-    summary: "(mock) This is placeholder feedback. Set ANTHROPIC_API_KEY to get real scoring.",
+    summary: "(mock) This is placeholder feedback. Add your API key in Settings to get real scoring.",
     model_answer: `(mock) ${question.brief.reference_answer}`,
   };
 }

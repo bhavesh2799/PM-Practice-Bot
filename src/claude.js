@@ -3,17 +3,26 @@ import { z } from "zod";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { CATEGORIES, generationPrompt, interviewerSystem, scoringPrompt } from "./prompts.js";
 import * as mock from "./mock.js";
+import { getSettings } from "./store.js";
 
-const MODEL = process.env.CLAUDE_MODEL || "claude-opus-5-5";
-export const MOCK = process.env.MOCK === "1";
+const MODEL = "claude-opus-5-5";
+export const isMock = () => !!getSettings().mock;
 
 // Server-side fallback: if a request is ever declined by a safety classifier,
 // the API retries it on a suitable fallback model inside the same call.
 const FALLBACK = { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" };
 
+// Calls go straight from the browser to the Anthropic API with the key the
+// user saved in Settings (kept in this browser's localStorage only).
 let client;
+let clientKey;
 function getClient() {
-  if (!client) client = new Anthropic();
+  const key = getSettings().apiKey;
+  if (!key) throw new AIError("Add your Anthropic API key in Settings first (or turn on demo mode).", 401);
+  if (!client || clientKey !== key) {
+    client = new Anthropic({ apiKey: key, dangerouslyAllowBrowser: true });
+    clientKey = key;
+  }
   return client;
 }
 
@@ -27,15 +36,13 @@ export class AIError extends Error {
 function explain(err) {
   if (err instanceof AIError) return err;
   if (err instanceof Anthropic.AuthenticationError)
-    return new AIError("Anthropic API key is missing or invalid. Set ANTHROPIC_API_KEY in .env and restart.", 500);
+    return new AIError("Your Anthropic API key was rejected. Check it in Settings.", 401);
   if (err instanceof Anthropic.RateLimitError)
     return new AIError("Rate limited by the Anthropic API — wait a minute and retry.", 429);
   if (err instanceof Anthropic.APIConnectionError)
     return new AIError("Could not reach the Anthropic API. Check your network.", 503);
   if (err instanceof Anthropic.APIError)
     return new AIError(`Anthropic API error (${err.status}): ${err.message}`, 502);
-  if (err?.message?.includes("Could not resolve authentication method"))
-    return new AIError("ANTHROPIC_API_KEY is not set. Copy .env.example to .env, add your key and restart (or run `npm run mock` to preview the UI).", 500);
   return new AIError(err?.message || "Unknown error", 500);
 }
 
@@ -81,7 +88,7 @@ const GeneratedQuestion = z.object({
 const QuestionBatch = z.object({ questions: z.array(GeneratedQuestion) });
 
 export async function generateCategory(category, slots, profile, recent) {
-  if (MOCK) return mock.questions(category, slots);
+  if (isMock()) return mock.questions(category, slots);
   const { system, user } = generationPrompt(category, slots, profile, recent);
   const out = await structured(QuestionBatch, { system, user, effort: "medium" });
   if (out.questions.length < slots.length)
@@ -92,7 +99,7 @@ export async function generateCategory(category, slots, profile, recent) {
 // ---------- Interviewer chat ----------
 
 export async function interviewerReply(question, profile, turns) {
-  if (MOCK) return mock.reply(question, turns);
+  if (isMock()) return mock.reply(question, turns);
   const messages = turns.map((t) => ({
     role: t.role,
     content: t.role === "user" ? `[${t.stage === "answer" ? "ANSWER" : "CLARIFYING"}] ${t.text}` : t.text,
@@ -142,7 +149,7 @@ function scoreSchema(category) {
 }
 
 export async function scoreSession(question, transcript, elapsedSec, notes) {
-  if (MOCK) return mock.score(question);
+  if (isMock()) return mock.score(question);
   const { system, user } = scoringPrompt(question, transcript, elapsedSec, notes);
   return structured(scoreSchema(question.category), { system, user, effort: "high" });
 }

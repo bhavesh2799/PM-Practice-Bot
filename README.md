@@ -1,6 +1,6 @@
 # PM Practice Bot
 
-A personal web app for daily PM interview practice. Every day it generates **6 questions tailored to your profile** and runs each one as a mock interview with an AI interviewer, then scores you on a weighted rubric.
+A personal web app for daily PM interview practice, hosted on GitHub Pages. Every day it generates **6 questions tailored to your profile** and runs each one as a mock interview with an AI interviewer, then scores you on a weighted rubric.
 
 ## The daily set
 
@@ -26,35 +26,43 @@ Rubrics (weights in `lib/prompts.js`):
 
 The **Progress** page shows your average per category and per rubric dimension, your day streak, and your recent interviews, so you can see which skill to work on.
 
-## Run it
+## Use it
 
-Requires Node 20.12+ and an [Anthropic API key](https://console.anthropic.com).
+It's a static site hosted on GitHub Pages: **https://bhavesh2799.github.io/PM-Practice-Bot/**
 
-```bash
-npm install
-cp .env.example .env      # then put your key in ANTHROPIC_API_KEY
-npm start                 # http://localhost:3000
-```
+1. Open the site and go to **Settings**.
+2. Paste an [Anthropic API key](https://console.anthropic.com/settings/keys). The first visit to Today each day generates the set, which takes about a minute. After that it is cached.
 
-The first visit each day generates the set, which takes about a minute. After that it is cached.
-
-To try the UI without a key, run `npm run mock`. It serves canned questions and placeholder feedback.
-
-Your profile is editable on the **Profile** page. Use **↻ New set** on Today to regenerate a day's questions after you change it. All data (questions, sessions, profile) is stored as JSON in `./data/`, which is gitignored.
+Everything runs in your browser:
+- The app calls the Anthropic API directly from the page with your key. The key is stored only in this browser's localStorage and is sent only to `api.anthropic.com`.
+- Questions, interviews, scores and your profile are also in localStorage. Use **Settings → Export backup / Import backup** to move them to another browser or device.
+- **Demo mode** (Settings, or "Try demo mode" on first visit) serves canned questions and placeholder feedback with no API calls.
 
 ## Notes
 
-- Model: `claude-opus-5-5`. You can override it with `CLAUDE_MODEL`. Question generation uses medium effort, the interviewer's replies use low effort (fast), and scoring uses high effort.
+- Model: `claude-opus-5-5`. Question generation uses medium effort, the interviewer's replies use low effort (fast), and scoring uses high effort.
 - Requests enable server-side refusal fallback (`fallbacks: "default"`). If a request is ever declined, the API retries it on a fallback model.
 - Rough cost: about $0.30–0.60 to generate a day's 6 questions, 1–2 cents per interviewer reply, and about $0.10–0.20 per scoring. A full day of 6 interviews comes to roughly $1.50–2.
+- Anyone can open the public URL, but each visitor needs their own API key. Nobody can see your key or your data.
+
+## Develop
+
+```bash
+npm install
+npm run dev     # http://localhost:3000, rebuilds on change
+npm run build   # static site in dist/
+```
+
+Every push to `main` or `claude/tender-lovelace-u30s1e` deploys to Pages through `.github/workflows/pages.yml`. One-time setup: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 
 ## Files
 
 ```
-server.js          Express API and static hosting
-lib/prompts.js     Profile default, daily rotation, rubrics, all prompt text
-lib/claude.js      Anthropic SDK calls (generation, interviewer, scoring)
-lib/store.js       JSON file storage in ./data
-lib/mock.js        Canned data for `npm run mock`
-public/            Frontend (vanilla HTML/CSS/JS)
+src/app.js         UI (vanilla JS, hash routing)
+src/backend.js     In-browser "API": days, sessions, scoring, progress
+src/prompts.js     Profile default, daily rotation, rubrics, all prompt text
+src/claude.js      Anthropic SDK calls (generation, interviewer, scoring)
+src/store.js       localStorage persistence, export / import
+src/mock.js        Canned data for demo mode
+build.mjs          esbuild bundling into dist/
 ```

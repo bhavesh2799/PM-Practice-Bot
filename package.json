@@ -1,20 +1,20 @@
 {
   "name": "pm-practice-bot",
   "version": "1.0.0",
-  "description": "Daily PM interview practice: 6 profile-tailored questions with an AI interviewer and rubric-based scoring.",
+  "description": "Daily PM interview practice: 6 profile-tailored questions with an AI interviewer and rubric-based scoring. Static site for GitHub Pages.",
   "type": "module",
-  "main": "server.js",
   "scripts": {
-    "start": "node --env-file-if-exists=.env server.js",
-    "dev": "node --env-file-if-exists=.env --watch server.js",
-    "mock": "MOCK=1 node server.js"
+    "dev": "node build.mjs --serve",
+    "build": "node build.mjs"
   },
   "engines": {
-    "node": ">=20.12"
+    "node": ">=20"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
-    "express": "^5.1.0",
     "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }

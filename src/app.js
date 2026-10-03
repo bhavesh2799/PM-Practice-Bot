@@ -1,19 +1,10 @@
+import { api, store } from "./backend.js";
+
 const $app = document.getElementById("app");
 let config = null;
 let timerHandle = null;
 
 // ---------- helpers ----------
-
-async function api(path, opts = {}) {
-  const res = await fetch(path, {
-    method: opts.method || "GET",
-    headers: opts.body ? { "Content-Type": "application/json" } : undefined,
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(data.error || `Request failed (${res.status})`), { status: res.status });
-  return data;
-}
 
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -72,7 +63,7 @@ async function route() {
   try {
     if (view === "s" && arg) return await renderSession(arg);
     if (view === "progress") return await renderProgress();
-    if (view === "profile") return await renderProfile();
+    if (view === "settings" || view === "profile") return await renderSettings();
     if (view === "day" && arg) return await renderDay(arg);
     return await renderDay(config.today);
   } catch (err) {
@@ -91,6 +82,7 @@ async function renderDay(date) {
     day = await api(`/api/day/${date}`);
   } catch (err) {
     if (err.status !== 404) throw err;
+    if (!config.hasKey && !config.mock) return renderWelcome();
     loading("Generating your 6 questions for " + prettyDate(date) + "…", "Tailored to your profile. This takes about a minute.");
     day = await api(`/api/day/${date}/generate`, { method: "POST" });
   }
@@ -512,28 +504,98 @@ async function renderProgress() {
     </div>`;
 }
 
-// ---------- Profile ----------
+// ---------- Welcome (no API key yet) ----------
 
-async function renderProfile() {
-  setNav("profile");
-  const { text } = await api("/api/profile");
+function renderWelcome() {
+  setNav("today");
   $app.innerHTML = `
-    <h1>Your profile</h1>
-    <p class="muted">Questions are tailored to this. Changes apply to newly generated sets (use “↻ New set” on Today to regenerate).</p>
+    <div class="card stack" style="max-width:640px;margin:2rem auto">
+      <h1>Daily PM interview practice</h1>
+      <p>Every day you get 6 questions tailored to your profile: 2 guesstimates, 2 root-cause analyses and 2 product design questions. Each one runs as a mock interview with an AI interviewer, then you're scored on your clarifying questions, structure and more.</p>
+      <p>It runs on Claude, so you need an <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Anthropic API key</a>. The key stays in this browser and is only sent to Anthropic.</p>
+      <div class="row">
+        <a class="btn primary" href="#/settings">Add API key</a>
+        <button class="btn" id="demo">Try demo mode</button>
+      </div>
+    </div>`;
+  document.getElementById("demo").onclick = async () => {
+    await api("/api/settings", { method: "PUT", body: { mock: true } });
+    await refreshConfig();
+    route();
+  };
+}
+
+// ---------- Settings ----------
+
+async function renderSettings() {
+  setNav("settings");
+  const { text } = await api("/api/profile");
+  const settings = await api("/api/settings");
+  $app.innerHTML = `
+    <h1>Settings</h1>
+
+    <h2 style="margin-top:1.25rem">Anthropic API key</h2>
+    <div class="card profile stack">
+      <p class="small muted" style="margin:0">Questions, the interviewer and scoring run on Claude, called directly from this browser with your key. The key is stored only in this browser's local storage and is sent only to api.anthropic.com. Get one at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>. A full day of 6 interviews costs roughly $1.50–2.</p>
+      <div class="row">
+        <input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="${settings.hasKey ? `Saved (${esc(settings.keyHint)}) — paste a new key to replace` : "sk-ant-..."}" style="flex:1;min-width:220px" />
+        <button class="btn primary" id="saveKey">Save key</button>
+        ${settings.hasKey ? `<button class="btn ghost" id="clearKey">Remove</button>` : ""}
+      </div>
+      <label class="row small"><input type="checkbox" id="mock" ${settings.mock ? "checked" : ""} /> Demo mode — canned questions and placeholder feedback, no API calls</label>
+      <span class="muted small" id="keyStatus"></span>
+    </div>
+
+    <h2 style="margin-top:1.5rem">Your profile</h2>
+    <p class="muted small">Questions are tailored to this. Changes apply to newly generated sets (use “↻ New set” on Today to regenerate).</p>
     <div class="card profile">
-      <textarea id="profile" rows="10">${esc(text)}</textarea>
+      <textarea id="profile" rows="9">${esc(text)}</textarea>
       <div class="row" style="margin-top:.6rem"><button class="btn primary" id="save">Save profile</button><span class="muted small" id="status"></span></div>
     </div>
+
+    <h2 style="margin-top:1.5rem">Your data</h2>
+    <div class="card stack">
+      <p class="small muted" style="margin:0">Questions, interviews and scores are saved in this browser only. Export a backup to move them to another browser or device.</p>
+      <div class="row">
+        <button class="btn" id="export">Export backup</button>
+        <label class="btn">Import backup<input type="file" id="import" accept="application/json" hidden /></label>
+        <span class="muted small" id="dataStatus"></span>
+      </div>
+    </div>
+
     <h2 style="margin-top:1.5rem">How a day works</h2>
     <div class="card small">
       <ul>
         <li><strong>2 Guesstimates</strong> with India context, rotating top-down / bottom-up / supply-side / demand-side styles.</li>
-        <li><strong>2 RCAs</strong> — one consumer product, one fintech / healthtech / logistics / B2B SaaS.</li>
-        <li><strong>2 Product Design</strong> — one in fintech / healthtech / logistics / SaaS, one open.</li>
+        <li><strong>2 RCAs</strong>: one consumer product, one fintech / healthtech / logistics / B2B SaaS.</li>
+        <li><strong>2 Product Design</strong>: one in fintech / healthtech / logistics / SaaS, one open.</li>
         <li>Each category has one easier and one harder question. Recent questions are not repeated.</li>
         <li>Each interview: <strong>Clarify</strong> (ask the interviewer questions) → <strong>Answer</strong> (present; the interviewer may probe) → <strong>Score</strong> against a weighted rubric with a model answer.</li>
       </ul>
     </div>`;
+
+  const $ks = document.getElementById("keyStatus");
+  document.getElementById("saveKey").onclick = async () => {
+    const key = document.getElementById("key").value.trim();
+    if (!key) return ($ks.textContent = "Paste a key first.");
+    if (!key.startsWith("sk-ant-")) return ($ks.textContent = "That doesn't look like an Anthropic key (they start with sk-ant-).");
+    await api("/api/settings", { method: "PUT", body: { apiKey: key, mock: false } });
+    await refreshConfig();
+    renderSettings();
+  };
+  document.getElementById("clearKey")?.addEventListener("click", async () => {
+    await api("/api/settings", { method: "PUT", body: { apiKey: "" } });
+    await refreshConfig();
+    renderSettings();
+  });
+  document.getElementById("mock").onchange = async (e) => {
+    await api("/api/settings", { method: "PUT", body: { mock: e.target.checked } });
+    await refreshConfig();
+    $ks.textContent = e.target.checked
+      ? "Demo mode on. Use “↻ New set” on Today to swap in demo questions."
+      : "Demo mode off. Use “↻ New set” on Today to replace any demo questions with real ones.";
+  };
+
   document.getElementById("save").onclick = async () => {
     const $s = document.getElementById("status");
     try {
@@ -543,21 +605,45 @@ async function renderProfile() {
       $s.textContent = err.message;
     }
   };
+
+  const $ds = document.getElementById("dataStatus");
+  document.getElementById("export").onclick = () => {
+    const blob = new Blob([JSON.stringify(store.exportAll(), null, 2)], { type: "application/json" });
+    const a = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(blob),
+      download: `pm-practice-backup-${config.today}.json`,
+    });
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+  document.getElementById("import").onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const { days, sessions } = store.importAll(JSON.parse(await file.text()));
+      $ds.textContent = `Imported ${days} days and ${sessions} interviews.`;
+    } catch (err) {
+      $ds.textContent = err.message;
+    }
+    e.target.value = "";
+  };
 }
 
 // ---------- boot ----------
 
+async function refreshConfig() {
+  config = await api("/api/config");
+  const b = document.getElementById("banner");
+  b.hidden = !config.mock;
+  b.textContent = "Demo mode: questions and feedback are canned placeholders. Add your API key in Settings for the real thing.";
+}
+
 (async () => {
   try {
-    config = await api("/api/config");
+    await refreshConfig();
   } catch (err) {
     showError(err);
     return;
-  }
-  if (config.mock) {
-    const b = document.getElementById("banner");
-    b.hidden = false;
-    b.textContent = "Mock mode: questions and feedback are canned placeholders. Set ANTHROPIC_API_KEY and run `npm start` for the real thing.";
   }
   window.addEventListener("hashchange", route);
   route();
